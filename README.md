@@ -2,6 +2,9 @@
 # Cloud-native, Reactive, live score streaming app development workshop
 This repository contains the source code and the resources for workshop from Spring IO 2019, Barcelona.
 
+https://2019.springio.net/sessions/cloud-native-reactive-spring-boot-application-development-workshop
+
+
 ## Prerequisites
 In order to follow the workshop, it's good idea to have the following prerequisites ready on your system
     
