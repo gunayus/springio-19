@@ -119,7 +119,7 @@ in the dependencies section, select 'Config Server'. eventually following depend
 		</dependency>
 ```
 
-add '@EnableConfigServer' annotation to 'ConfigServiceApplication.java'. shuld look like this
+add '@EnableConfigServer' annotation to 'ConfigServiceApplication.java'. should look like this
 
 ```
 @SpringBootApplication
@@ -133,3 +133,25 @@ public class ConfigServiceApplication {
 }
 ```
 
+edit 'application.properties' file so that server port and configuration repository is defined
+
+```
+spring.application.name=config-service
+
+server.port=8888
+
+spring.cloud.config.server.git.uri=https://github.com/gunayus/springio-19-config.git
+```
+
+run 'ConfigServiceApplication.java' as Java application from your IDE or following
+
+```
+cd config-service
+mvn spring-boot:run
+```
+
+try to fetch config information 
+
+```
+curl -X GET http://localhost:8888/live-score-service/default
+```
