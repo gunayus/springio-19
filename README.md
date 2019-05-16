@@ -133,7 +133,7 @@ public class ConfigServiceApplication {
 }
 ```
 
-edit 'application.properties' file so that server port and configuration repository is defined
+edit 'application.properties' file so that server port and configuration repository is defined. 
 
 ```
 spring.application.name=config-service
@@ -142,6 +142,13 @@ server.port=8888
 
 spring.cloud.config.server.git.uri=https://github.com/gunayus/springio-19-config.git
 ```
+
+you can always clone my config repository to your local environment and make modifications. you should not forget 'git add ' and 'git commit' commands. In that case git uri should point to the local folder
+
+```
+spring.cloud.config.server.git.uri=absolute-path/to/config-repo-folder/springio-19-config
+```
+
 
 run 'ConfigServiceApplication.java' as Java application from your IDE or following
 
@@ -154,4 +161,347 @@ try to fetch config information
 
 ```
 curl -X GET http://localhost:8888/live-score-service/default
+```
+
+
+### service-registry application
+
+create a new module 'service-registry' from Spring Initializer. 
+
+```
+	<groupId>org.springmeetup</groupId>
+	<artifactId>service-registry</artifactId>
+```
+
+in the dependencies section, select 'Eureka Server'. eventually following dependency should be in pom.xml.  
+
+```
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+		</dependency>
+```
+
+add '@EnableEurekaServer' annotation to 'ServiceRegistryApplication.java'. should look like this
+
+```
+@SpringBootApplication
+@EnableEurekaServer
+public class ServiceRegistryApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ServiceRegistryApplication.class, args);
+	}
+
+}
+```
+
+edit 'application.properties' file so that server port is defined.
+
+```
+
+spring.application.name=service-registry
+server.port=8760
+
+eureka.client.register-with-eureka=false
+```
+
+run 'ServiceRegistryApplication.java' as Java application from your IDE or following
+
+```
+cd service-registry
+mvn spring-boot:run
+```
+
+you should be able to see Eureka main page from your favourite browser
+
+```
+http://localhost:8760/
+```
+
+### live-score-service application
+
+for now let's leave the config-service and service-registry apps up and running for a while aside. we'll revisit them during the workshop. 
+
+live-score-service is the main module in this workshop. this is where we will mainly add following features 
+
++ traditional web REST service 
++ make it reactive with webflux
++ play with Flux<Greeting> a bit
++ create consumer driven contracts and do the implementation according to the contract
++ fetch data from Redis in a recactive manner
++ stream data from Kafka in a reactive manner as SSEs
++ integrate with config-service
++ integrate with service-registry
+
+create a new module 'live-score-service' from Spring Initializer
+
+```
+	<groupId>org.springmeetup</groupId>
+	<artifactId>live-score-service</artifactId>
+```
+
+select following dependencies
++ Web (Servlet web application with Spring WebMVC and Tomcat)
++ DevTools
++ Lombok
++ Actuator
++ Cloud Contract Verifier
++ Eureka Discovery
++ Config Client
++ Reactive Redis
++ Kafka (Kafka messaging support using Spring Kafka)
+
+when project is created, there will be quite a few dependencies in pom.xml
+
+add following pieces manually
+
+```
+	<properties>
+		<spring-cloud-contract.version>2.1.1.RELEASE</spring-cloud-contract.version>
+	</properties>
+```
+
+```
+    <dependencies>
+        ...
+		<dependency>
+			<groupId>io.projectreactor.kafka</groupId>
+			<artifactId>reactor-kafka</artifactId>
+		</dependency>
+		
+		<!-- Micormeter core dependecy  -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-core</artifactId>
+		</dependency>
+		<!-- Micrometer Prometheus registry  -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+		...
+		
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+
+			<plugin>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-contract-maven-plugin</artifactId>
+				<version>${spring-cloud-contract.version}</version>
+				<extensions>true</extensions>
+				<configuration>
+					<packageWithBaseClasses>org.springmeetup.livescoreservice</packageWithBaseClasses>
+					<testMode>EXPLICIT</testMode>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+```
+
+#### contract driven REST development
+
+we will implement 'GET /match/{id}' REST service in the contract driven manner
+
+pay attention to following files
+
+```
+src/test/resources/contracts/api/get-match-by-id-1.groovy
+target/generated-test-sources/contracts/org/springmeetup/livescoreservice/ApiTest.java
+src/test/java/org/springmeetup/livescoreservice/ApiBase.java
+src/main/java/org/springmeetup/livescoreservice/rest/ApiRestController.java
+src/main/resources/application.properties
+```
+ 
+as you progress, you can run tests with following command 
+
+```
+cd live-score-service
+mvn test
+```
+
+when the first contract is successfully implemented and the test passes, we can focus on the second contract
+
+```
+src/test/resources/contracts/api/get-match-by-id-2.groovy
+```
+
+#### reactive Redis integration
+
+after we have both tests pass, we will implement Redis integration so that the match data can be persisted to Redis and fetched from Redis in a reactive manner
+
+```
+src/main/java/org/springmeetup/livescoreservice/redis/RedisConfiguration.java
+src/main/java/org/springmeetup/livescoreservice/service/ApiRestService.java
+```
+
+once we have the implementation ready, we should Run 'LiveScoreServiceApplication.java' from IDE or similar to previous sections : 'mvn spring-boot:run'
+
+```
+curl -X POST \
+  http://localhost:8080/match \
+  -H 'Content-Type: application/json' \
+  -d '{
+	"match-id": 3,
+	"name": "Barcelona - Getafe",
+	"start-date": "2019-05-01T19:00:00",
+	"status": "COMPLETED",
+	"score": "1 - 1",
+	"events": [
+		{
+			"minute": 1, 
+			"type": "GOAL",
+			"team": "Barcelona",
+			"player-name": "Lionel Messi"
+		},
+		{
+			"minute": 45, 
+			"type": "RED",
+			"team": "Real Madrid",						
+			"player-name": "Sergio Ramos"
+		},
+		{
+			"minute": 75, 
+			"type": "GOAL",
+			"team": "Real Madrid",						
+			"player-name": "Luka Modric"
+		},
+		{
+			"minute": 78, 
+			"type": "YELLOW",
+			"team": "Real Madrid",						
+			"player-name": "Luka Modric"
+		}
+	]
+}'
+```
+
+```
+curl -X GET http://localhost:8080/match/3
+```
+
+should return saved Match data
+
+#### reactive Kafka integration
+
+in order to stream Match data as Server Sent Events through Flux<Match>, we will use Kafka. 
+
+```
+src/main/java/org/springmeetup/livescoreservice/kafka/KafkaConfiguration.java
+src/main/java/org/springmeetup/livescoreservice/kafka/KafkaService.java
+src/main/java/org/springmeetup/livescoreservice/service/ApiRestService.java
+src/main/java/org/springmeetup/livescoreservice/rest/ApiRestController.java
+```
+
+once the KafkaSender, KafkaReceiver beans are configured properly and implementations are finalized, you can try
+
+```
+curl -X GET http://localhost:8080/match/2/stream 
+```
+
+the connection will remain open until one of the parties cancels the connection and any update on the match with id '2' will be published to this client
+
+
+### team-service application
+
+this application has nothing special, it's just used for routing requests from gateway-service. so do not hesitate and copy /paste the whole project. 
+
+run 'TeamServiceApplication.java'
+
+```
+curl -X GET http://localhost:8081/team/Fenerbahçe
+```
+
+should return information for team 'Fenerbahçe'
+
+### gateway-service application
+
+create a new module 'gateway-service' from Spring Initializer
+
+```
+	<groupId>org.springmeetup</groupId>
+	<artifactId>gateway-service</artifactId>
+```
+
+select following dependencies
++ Eureka Discovery
++ Zuul
+
+in the dependencies section, select 'Config Server'. eventually following dependency should be in pom.xml.  
+
+```
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-zuul</artifactId>
+		</dependency>
+```
+
+add '@EnableZuulProxy' annotation to 'GatewayServiceApplication.java'. should look like this
+
+```
+@SpringBootApplication
+@EnableZuulProxy
+public class GatewayServiceApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(GatewayServiceApplication.class, args);
+	}
+
+}
+```
+
+edit 'application.properties' file so that server port, eureka server address and routing roules are defined. 
+
+```
+spring.application.name=gateway-service
+server.port=8000
+
+eureka.client.service-url.defaultZone=http://localhost:8760/eureka/
+
+zuul.routes.team.path=/team-service
+zuul.routes.team.serviceId=team-service
+
+zuul.routes.livescore.path=/live-score-service
+zuul.routes.livescore.serviceId=live-score-service
+```
+
+run 'GatewayServiceApplication.java' as Java application from your IDE or following
+
+```
+cd gateway-service
+mvn spring-boot:run
+```
+
+try to fetch live-score-service and team-service 
+
+```
+curl -X GET http://localhost:8000/live-score-service/match/3
+curl -X GET http://localhost:8000/team-service/team/Fenerbahçe
+```
+
+also try non-existing urls and see the failure with 404
+
+```
+curl -X GET http://localhost:8000/non-existing-service/match/3
+curl -X GET http://localhost:8000/live-score-service/non-existing-path/3
+```
+
+### live-score-service prometheus exporter
+
+having the required dependencies and configuration you should be able to query prometheus exporter 
+
+```
+management.endpoints.web.exposure.include=*
+```
+
+```
+curl -X GET http://localhost:8080/actuator/prometheus
 ```
