@@ -257,6 +257,19 @@ when project is created, there will be quite a few dependencies in pom.xml
 add following pieces manually
 
 ```
+spring.application.name=live-score-service
+
+spring.jackson.property-naming-strategy=KEBAB_CASE
+spring.jackson.default-property-inclusion=non_null
+
+management.endpoints.web.exposure.include=*
+
+spring.cloud.config.uri=http://localhost:8888
+
+eureka.client.service-url.defaultZone=http://localhost:8760/eureka/
+```
+
+```
 	<properties>
 		<spring-cloud-contract.version>2.1.1.RELEASE</spring-cloud-contract.version>
 	</properties>
