@@ -242,7 +242,7 @@ create a new module 'live-score-service' from Spring Initializer
 ```
 
 select following dependencies
-+ Web (Servlet web application with Spring WebMVC and Tomcat)
++ Reactive Web (Reactive web application with Spring WebFlux and Netty)
 + DevTools
 + Lombok
 + Actuator
@@ -306,6 +306,82 @@ add following pieces manually
 #### contract driven REST development
 
 we will implement 'GET /match/{id}' REST service in the contract driven manner
+
+the steps for making a contract driven service development includes following steps
+
++ defining the contract 
+
+```
+package contracts.api
+
+import org.springframework.cloud.contract.spec.Contract
+
+Contract.make {
+	description("Returns the details of match by id : 1")
+
+	request {
+		method GET()
+		url "/match/1"
+		headers {
+			contentType applicationJson()
+		}
+	}
+
+	response {
+		status OK()
+		headers {
+			contentType applicationJson()
+		}
+		body("""
+			{
+				"match-id": 1,
+				"name": "Fenerbahçe - Galatasaray",
+				"start-date": "2019-05-16T19:00:00",
+				"status": "NOT_STARTED"
+			}
+		"""
+		)
+	}
+}
+```
+
++ generating the test classes automatically
+
+which will be handled by spring-cloud-contract-maven-plugin
+```
+			<plugin>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-contract-maven-plugin</artifactId>
+				<version>${spring-cloud-contract.version}</version>
+				<extensions>true</extensions>
+				<configuration>
+					<packageWithBaseClasses>org.springmeetup.livescoreservice</packageWithBaseClasses>
+					<testMode>EXPLICIT</testMode>
+				</configuration>
+			</plugin>
+```
+
++ add ApiBase.java test class for ApiTest.java compile problem
+
+```
+@RunWith(SpringRunner.class)
+@SpringBootTest(
+		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+		properties = "server.port=0")
+public class ApiBase {
+
+	@LocalServerPort
+	int port;
+	
+	...
+	...
+	@Before
+	public void setup() {
+		RestAssured.baseURI = "http://localhost:" + this.port;
+    }	
+```
+
++ do the actual RestController implementation to fix the test problems
 
 pay attention to following files
 
