@@ -23,7 +23,7 @@ public class ApiRestService {
 	private final KafkaSender<String, String> kafkaSender;
 
 	private ReactiveHashOperations<String, String, Match> matchReactiveHashOperations() {
-		return matchReactiveRedisTemplate.<String, Match>opsForHash();
+		return matchReactiveRedisTemplate.opsForHash();
 	}
 
 	public Mono<Match> findMatchById(Long id) {
