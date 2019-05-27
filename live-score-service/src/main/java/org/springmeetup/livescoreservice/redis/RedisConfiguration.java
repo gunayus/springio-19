@@ -47,7 +47,7 @@ public class RedisConfiguration {
 		return new ReactiveRedisTemplate<>(reactiveRedisConnectionFactory, serializationContext);
 	}
 
-	public <T> Jackson2JsonRedisSerializer<T> configureJackson2JsonRedisSerializer(Class<T> t) {
+	private <T> Jackson2JsonRedisSerializer<T> configureJackson2JsonRedisSerializer(Class<T> t) {
 		ObjectMapper objectMapper = new ObjectMapper()
 				.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.KEBAB_CASE);
